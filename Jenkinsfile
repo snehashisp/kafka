@@ -18,13 +18,15 @@
  */
 
 def config = jobConfig {
-    cron = '@weekly'
+    cron = ''
     nodeLabel = 'docker-oraclejdk8'
     testResultSpecs = ['junit': '**/build/test-results/**/TEST-*.xml']
-    slackChannel = '#kafka-warn'
+    slackChannel = ''
     timeoutHours = 4
     runMergeCheck = false
     downStreamValidate = true
+    testbreakReporting = false
+    downStreamRepos = ["common",]
 }
 
 def retryFlagsString(jobConfig) {
@@ -35,9 +37,10 @@ def retryFlagsString(jobConfig) {
 def downstreamBuildFailureOutput = ""
 def publishStep(String configSettings) {
   configFileProvider([configFile(fileId: configSettings, variable: 'GRADLE_NEXUS_SETTINGS')]) {
-          sh "./gradlewAll --init-script ${GRADLE_NEXUS_SETTINGS} --no-daemon uploadArchives"
+      sh "./gradlewAll --init-script ${GRADLE_NEXUS_SETTINGS} --no-daemon uploadArchives"
   }
 }
+
 def job = {
     // https://github.com/confluentinc/common-tools/blob/master/confluent/config/dev/versions.json
     def kafkaMuckrakeVersionMap = [
@@ -47,6 +50,10 @@ def job = {
             "trunk": "master",
             "master": "master"
     ]
+
+    if (!config.isReleaseJob && !config.isPrJob) {
+        ciTool("ci-update-version ${env.WORKSPACE} kafka")
+    }
 
     stage("Check compilation compatibility with Scala 2.12") {
         sh "./gradlew clean assemble spotlessScalaCheck checkstyleMain checkstyleTest spotbugsMain " +
@@ -59,14 +66,30 @@ def job = {
                 "--no-daemon --stacktrace -PxmlSpotBugsReport=true"
     }
 
-    if (config.publish) {
-      stage("Publish to artifactory") {
-        if (config.isDevJob) {
-          publishStep('Gradle-Artifactory-Settings')
-        } else if (config.isPreviewJob) {
-          publishStep('Gradle-Artifactory-Preview-Release-Settings')
+    if (config.publish && (config.isDevJob || config.isPreviewJob)) {
+        stage("Publish to artifactory") {
+            if (!config.isReleaseJob && !config.isPrJob) {
+                ciTool("ci-push-tag ${env.WORKSPACE} kafka")
+            }
+
+            if (config.isDevJob) {
+                publishStep('Gradle-Artifactory-Settings')
+            } else if (config.isPreviewJob) {
+                publishStep('Gradle-Artifactory-Preview-Release-Settings')
+            }
         }
-      }
+    }
+
+    if (config.publish && config.isDevJob && !config.isReleaseJob && !config.isPrJob) {
+        stage("Start Downstream Builds") {
+            config.downStreamRepos.each { repo ->
+              // TODO: change to confluent org after done testing.
+                build(job: "nano_versioning/${repo}/${env.BRANCH_NAME}",
+                    wait: false,
+                    propagate: false
+                )
+            }
+        }
     }
 
     def runTestsStepName = "Step run-tests"
@@ -94,6 +117,9 @@ def job = {
                 return summary;
             }
         },
+        //TODO re-enable when done testing.
+        /*,
+>>>>>>> ST-3458: Implement Nano versioning.
         downstreamBuildsStepName: {
             echo "Building cp-downstream-builds"
             stage('Downstream validation') {
@@ -103,8 +129,8 @@ def job = {
                     return "skip downStreamValidation"
                 }
             }
-        }
-    ]
+         }*/
+        ]
 
     result = parallel testTargets
     // combine results of the two targets into one result string

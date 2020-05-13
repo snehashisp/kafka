@@ -18,12 +18,13 @@
  */
 
 def config = jobConfig {
-    cron = '@midnight'
+    cron = ''
     nodeLabel = 'docker-oraclejdk8'
     testResultSpecs = ['junit': '**/build/test-results/**/TEST-*.xml']
-    slackChannel = '#kafka-warn'
+    slackChannel = ''
     timeoutHours = 4
     runMergeCheck = false
+    testbreakReporting = false
 }
 
 def retryFlagsString(jobConfig) {

@@ -48,6 +48,12 @@ def job = {
             "master": "master"
     ]
 
+    if (!config.isReleaseJob && !config.isPrJob) {
+        writeFile file:'.ci/update_version_info.py', text:libraryResource('scripts/update_version_info.py')
+        //TODO: fix this, not a good way to install this python library
+        runTool("pip install -Uq jprops && python .ci/update_version_info.py --repo-path=${env.WORKSPACE} --repo-name=kafka")
+    }
+
     stage("Check compilation compatibility with Scala 2.12") {
         sh "./gradlew clean assemble spotlessScalaCheck checkstyleMain checkstyleTest spotbugsMain " +
                  "--no-daemon --stacktrace -PxmlSpotBugsReport=true -PscalaVersion=2.12"
@@ -59,14 +65,26 @@ def job = {
                 "--no-daemon --stacktrace -PxmlSpotBugsReport=true"
     }
 
-    if (config.publish) {
-      stage("Publish to artifactory") {
-        if (config.isDevJob) {
-          publishStep('Gradle-Artifactory-Settings')
-        } else if (config.isPreviewJob) {
-          publishStep('Gradle-Artifactory-Preview-Release-Settings')
+    if (config.publish && (config.isDevJob || config.isPreviewJob)) {
+        stage("Publish to artifactory") {
+            if (!config.isReleaseJob && !config.isPrJob) {
+                withVaultEnv([["github/confluent_jenkins", "user", "GIT_USER"],
+                    ["github/confluent_jenkins", "access_token", "GIT_TOKEN"]]) {
+                    withEnv(["GIT_CREDENTIAL=${env.GIT_USER}:${env.GIT_TOKEN}"]) {
+                        writeFile file:".ci/setup-credential-store.sh", text:libraryResource('scripts/setup-credential-store.sh')
+                        writeFile file:".ci/push_git_tag.py", text:libraryResource('scripts/push_git_tag.py')
+                        sh 'bash .ci/setup-credential-store.sh'
+                        runTool("python .ci/push_git_tag.py --repo-path=${env.WORKSPACE} --repo-name=kafka")
+                    }
+                }
+            }
+
+            if (config.isDevJob) {
+                publishStep('Gradle-Artifactory-Settings')
+            } else if (config.isPreviewJob) {
+              publishStep('Gradle-Artifactory-Preview-Release-Settings')
+            }
         }
-      }
     }
 
     stage("Run Tests and build cp-downstream-builds") {
@@ -94,7 +112,9 @@ def job = {
                    summary = summary + (", Skipped: " + skipped)
                    return summary;
                }
-        },
+        }
+        //TODO re-enable when done testing.
+        /*,
         downstreamBuildsStepName: {
             echo "Building cp-downstream-builds"
             if (config.isPrJob) {
@@ -125,7 +145,7 @@ def job = {
             } else {
                 return ""
             }
-         }
+         }*/
         ]
 
         result = parallel testTargets

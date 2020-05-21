@@ -52,9 +52,7 @@ def job = {
     ]
 
     if (!config.isReleaseJob && !config.isPrJob) {
-        writeFile file:'.ci/update_version_info.py', text:libraryResource('scripts/update_version_info.py')
-        //TODO: fix this, not a good way to install this python library
-        runTool("pip install -Uq jprops && python .ci/update_version_info.py --repo-path=${env.WORKSPACE} --repo-name=kafka")
+        ciTool("ci-update-version --repo-path=${env.WORKSPACE} --repo-name=kafka")
     }
 
     stage("Check compilation compatibility with Scala 2.12") {
@@ -71,15 +69,7 @@ def job = {
     if (config.publish && (config.isDevJob || config.isPreviewJob)) {
         stage("Publish to artifactory") {
             if (!config.isReleaseJob && !config.isPrJob) {
-                withVaultEnv([["github/confluent_jenkins", "user", "GIT_USER"],
-                    ["github/confluent_jenkins", "access_token", "GIT_TOKEN"]]) {
-                    withEnv(["GIT_CREDENTIAL=${env.GIT_USER}:${env.GIT_TOKEN}"]) {
-                        writeFile file:".ci/setup-credential-store.sh", text:libraryResource('scripts/setup-credential-store.sh')
-                        writeFile file:".ci/push_git_tag.py", text:libraryResource('scripts/push_git_tag.py')
-                        sh 'bash .ci/setup-credential-store.sh'
-                        runTool("python .ci/push_git_tag.py --repo-path=${env.WORKSPACE} --repo-name=kafka")
-                    }
-                }
+                ciTool("ci-push-tag --repo-path=${env.WORKSPACE} --repo-name=kafka")
             }
 
             if (config.isDevJob) {

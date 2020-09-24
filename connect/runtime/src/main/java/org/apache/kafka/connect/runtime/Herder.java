@@ -16,6 +16,7 @@
  */
 package org.apache.kafka.connect.runtime;
 
+import org.apache.kafka.connect.preview.PreviewMetadataResponse;
 import org.apache.kafka.connect.runtime.isolation.Plugins;
 import org.apache.kafka.connect.runtime.rest.InternalRequestSignature;
 import org.apache.kafka.connect.runtime.rest.entities.ActiveTopicsInfo;
@@ -76,6 +77,8 @@ public interface Herder {
      * Get the definition and status of a connector.
      */
     void connectorInfo(String connName, Callback<ConnectorInfo> callback);
+
+    void previewConnector(String connName, Map<String, String> connectorConfigs, Callback<PreviewMetadataResponse> cb);
 
     /**
      * Get the configuration for a connector.

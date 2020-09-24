@@ -20,6 +20,7 @@ import org.apache.kafka.connect.connector.policy.ConnectorClientConfigOverridePo
 import org.apache.kafka.connect.errors.AlreadyExistsException;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.NotFoundException;
+import org.apache.kafka.connect.preview.PreviewMetadataResponse;
 import org.apache.kafka.connect.runtime.AbstractHerder;
 import org.apache.kafka.connect.runtime.ConnectorConfig;
 import org.apache.kafka.connect.runtime.HerderConnectorContext;
@@ -93,6 +94,11 @@ public class StandaloneHerder extends AbstractHerder {
         log.info("Herder starting");
         startServices();
         log.info("Herder started");
+    }
+
+    @Override
+    public void previewConnector(String connectorName, Map<String, String> connectorConfigs, Callback<PreviewMetadataResponse> cb) {
+        return;
     }
 
     @Override

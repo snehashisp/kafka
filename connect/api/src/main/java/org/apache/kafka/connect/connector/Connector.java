@@ -141,4 +141,11 @@ public abstract class Connector implements Versioned {
      * @return The ConfigDef for this connector; may not be null.
      */
     public abstract ConfigDef config();
+
+    /**
+     * Tell the connect runtime that this connector can be previewed. Defaults to false.
+     */
+    public boolean isPreviewAllowed() {
+        return false;
+    }
 }

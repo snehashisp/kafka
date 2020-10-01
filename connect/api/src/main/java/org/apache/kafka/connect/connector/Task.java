@@ -49,4 +49,5 @@ public interface Task {
      * Stop this task.
      */
     void stop();
+
 }

@@ -117,6 +117,13 @@ public class Worker {
         this(workerId, time, plugins, config, offsetBackingStore, Executors.newCachedThreadPool(), connectorClientConfigOverridePolicy);
     }
 
+    public ConnectorClientConfigOverridePolicy getConnectorClientConfigOverridePolicy() {
+        return connectorClientConfigOverridePolicy;
+    }
+
+    public WorkerConfig getConfig(){
+        return config;
+    }
     @SuppressWarnings("deprecation")
     Worker(
             String workerId,
@@ -573,7 +580,7 @@ public class Worker {
         return producerProps;
     }
 
-    static Map<String, Object> consumerConfigs(ConnectorTaskId id,
+    public static Map<String, Object> consumerConfigs(ConnectorTaskId id,
                                                WorkerConfig config,
                                                ConnectorConfig connConfig,
                                                Class<? extends Connector> connectorClass,

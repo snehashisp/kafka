@@ -34,8 +34,6 @@ import org.apache.kafka.connect.connector.policy.ConnectorClientConfigOverridePo
 import org.apache.kafka.connect.errors.AlreadyExistsException;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.NotFoundException;
-import org.apache.kafka.connect.preview.PreviewMetadataResponse;
-import org.apache.kafka.connect.preview.PreviewSourceTask;
 import org.apache.kafka.connect.runtime.AbstractHerder;
 import org.apache.kafka.connect.runtime.ConnectMetrics;
 import org.apache.kafka.connect.runtime.ConnectMetrics.LiteralSupplier;
@@ -61,6 +59,7 @@ import org.apache.kafka.connect.storage.ConfigBackingStore;
 import org.apache.kafka.connect.storage.MemoryOffsetBackingStore;
 import org.apache.kafka.connect.storage.OffsetStorageReader;
 import org.apache.kafka.connect.storage.OffsetStorageReaderImpl;
+import org.apache.kafka.connect.storage.OffsetStorageWriter;
 import org.apache.kafka.connect.storage.StatusBackingStore;
 import org.apache.kafka.connect.util.Callback;
 import org.apache.kafka.connect.util.ConnectorTaskId;
@@ -295,23 +294,6 @@ public class DistributedHerder extends AbstractHerder implements Runnable {
     this.herderExecutor.submit(this);
   }
 
-  @Override
-  public void previewConnector(String connectorName, Map<String, String> connectorConfigs,
-      final Callback<PreviewMetadataResponse> cb) {
-    OffsetStorageReader offsetStorageReader = new OffsetStorageReaderImpl(
-        new MemoryOffsetBackingStore(),
-        connectorName,
-        worker.getInternalKeyConverter(),
-        worker.getInternalValueConverter()
-    );
-    log.info("Running new preview of " + connectorName + " in a thread");
-    new Thread(new PreviewSourceTask(cb,
-        connectorName,
-        connectorConfigs,
-        worker.getPlugins(),
-        offsetStorageReader)
-    ).start();
-  }
 
   @Override
   public void run() {

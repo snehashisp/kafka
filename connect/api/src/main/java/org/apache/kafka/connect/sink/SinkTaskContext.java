@@ -16,6 +16,7 @@
  */
 package org.apache.kafka.connect.sink;
 
+import java.util.List;
 import org.apache.kafka.common.TopicPartition;
 
 import java.util.Map;
@@ -94,5 +95,22 @@ public interface SinkTaskContext {
      * It is only a hint to the runtime and no timing guarantee should be assumed.
      */
     void requestCommit();
+
+    /**
+     * Check if the current context is set to preview.
+     * Developers can use this to check if the connector is running in preview/testing mode and do different
+     * operations on the records. For example, in sink connectors supporting previews this need to be
+     * checked and the records need to be send to the previewOutputs functions instead of the external system.
+     */
+    default boolean previewEnabled() {
+        return false;
+    }
+
+    /**
+     * Sink tasks should send their preview outputs via this function
+     */
+    default void previewOutputs(List<Object> outputs) {
+        return;
+    }
 
 }

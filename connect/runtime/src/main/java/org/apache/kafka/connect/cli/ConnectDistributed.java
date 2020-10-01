@@ -87,6 +87,7 @@ public class ConnectDistributed {
     }
 
     public Connect startConnect(Map<String, String> workerProps) {
+        log.info("Starting Snehashis Custom build");
         log.info("Scanning for plugin classes. This might take a moment ...");
         Plugins plugins = new Plugins(workerProps);
         plugins.compareAndSwapWithDelegatingLoader();

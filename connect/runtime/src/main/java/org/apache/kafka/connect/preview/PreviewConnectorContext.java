@@ -7,7 +7,11 @@ import org.apache.kafka.connect.storage.OffsetStorageReaderImpl;
 
 public class PreviewConnectorContext implements ConnectorContext {
 
-  private Set<Exception> exceptionSet;
+  private PreviewResponse previewResponse;
+
+  public PreviewConnectorContext(PreviewResponse previewResponse) {
+    this.previewResponse = previewResponse;
+  }
 
   @Override
   public void requestTaskReconfiguration() {
@@ -15,8 +19,13 @@ public class PreviewConnectorContext implements ConnectorContext {
   }
 
   @Override
-  public void raiseError(Exception e) {
-    exceptionSet.add(e);
+  public void raiseError(Exception e){
+    previewResponse.addErrors(e);
+  }
+
+  @Override
+  public boolean previewEnabled() {
+    return true;
   }
 
 }

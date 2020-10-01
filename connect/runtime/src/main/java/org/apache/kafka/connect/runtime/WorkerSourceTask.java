@@ -99,7 +99,7 @@ class WorkerSourceTask extends WorkerTask {
     private boolean startedShutdownBeforeStartCompleted = false;
     private boolean stopped = false;
 
-    public WorkerSourceTask(ConnectorTaskId id,
+    public  WorkerSourceTask(ConnectorTaskId id,
                             SourceTask task,
                             TaskStatus.Listener statusListener,
                             TargetState initialState,

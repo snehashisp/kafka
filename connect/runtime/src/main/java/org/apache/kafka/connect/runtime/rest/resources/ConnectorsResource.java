@@ -22,7 +22,8 @@ import javax.ws.rs.core.HttpHeaders;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.kafka.connect.errors.NotFoundException;
-import org.apache.kafka.connect.preview.PreviewMetadataResponse;
+import org.apache.kafka.connect.preview.PreviewResponse;
+import org.apache.kafka.connect.preview.PreviewTask;
 import org.apache.kafka.connect.runtime.ConnectorConfig;
 import org.apache.kafka.connect.runtime.Herder;
 import org.apache.kafka.connect.runtime.WorkerConfig;
@@ -173,15 +174,23 @@ public class ConnectorsResource {
 
   @GET
   @Path("/preview")
-  public PreviewMetadataResponse previewConnector(@QueryParam("records") int records,
+  public PreviewResponse previewConnector(@QueryParam("records") int records,
       final @Context HttpHeaders headers,
       final CreateConnectorRequest previewRequest) throws Throwable {
+    if (0 == records) {
+      records = 10;
+    }
     log.info("Got new preview request of connector " + previewRequest.name());
-    FutureCallback<PreviewMetadataResponse> cb = new FutureCallback<>();
-    herder.previewConnector(previewRequest.name(), previewRequest.config(), cb);
+    FutureCallback<?> cb = new FutureCallback<>();
+    PreviewTask previewTask = herder
+        .previewConnector(previewRequest.name(), previewRequest.config(), records, cb);
     try {
-      return cb.get(REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+      cb.get(REQUEST_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+      previewTask.stopPreview();
+      return previewTask.getResponse();
+    } catch (TimeoutException e) {
+      return previewTask.getResponse();
+    } catch (InterruptedException | ExecutionException e) {
       e.printStackTrace();
       throw new ConnectRestException(Response.Status.INTERNAL_SERVER_ERROR.getStatusCode(),
           "Request timed out");

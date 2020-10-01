@@ -28,6 +28,8 @@ import org.apache.kafka.connect.connector.Connector;
 import org.apache.kafka.connect.connector.policy.ConnectorClientConfigOverridePolicy;
 import org.apache.kafka.connect.connector.policy.ConnectorClientConfigRequest;
 import org.apache.kafka.connect.errors.NotFoundException;
+import org.apache.kafka.connect.preview.PreviewConnectorTask;
+import org.apache.kafka.connect.preview.PreviewTask;
 import org.apache.kafka.connect.runtime.distributed.ClusterConfigState;
 import org.apache.kafka.connect.runtime.isolation.Plugins;
 import org.apache.kafka.connect.runtime.rest.entities.ActiveTopicsInfo;
@@ -129,6 +131,22 @@ public abstract class AbstractHerder implements Herder, TaskStatus.Listener, Con
         this.statusBackingStore.stop();
         this.configBackingStore.stop();
         this.worker.stop();
+    }
+
+    @Override
+    public PreviewTask previewConnector(String connectorName,
+        Map<String, String> connectorConfigs,
+        int records,
+        final Callback<?> cb) {
+
+        PreviewTask previewTask = new PreviewConnectorTask(cb,
+            connectorName,
+            connectorConfigs,
+            worker,
+            records
+        );
+        new Thread(previewTask).start();
+        return previewTask;
     }
 
     @Override

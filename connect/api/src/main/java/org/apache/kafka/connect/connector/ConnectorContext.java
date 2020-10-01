@@ -20,17 +20,29 @@ package org.apache.kafka.connect.connector;
  * ConnectorContext allows Connectors to proactively interact with the Kafka Connect runtime.
  */
 public interface ConnectorContext {
-    /**
-     * Requests that the runtime reconfigure the Tasks for this source. This should be used to
-     * indicate to the runtime that something about the input/output has changed (e.g. partitions
-     * added/removed) and the running Tasks will need to be modified.
-     */
-    void requestTaskReconfiguration();
 
-    /**
-     * Raise an unrecoverable exception to the Connect framework. This will cause the status of the
-     * connector to transition to FAILED.
-     * @param e Exception to be raised.
-     */
-    void raiseError(Exception e);
+  /**
+   * Requests that the runtime reconfigure the Tasks for this source. This should be used to
+   * indicate to the runtime that something about the input/output has changed (e.g. partitions
+   * added/removed) and the running Tasks will need to be modified.
+   */
+  void requestTaskReconfiguration();
+
+  /**
+   * Raise an unrecoverable exception to the Connect framework. This will cause the status of the
+   * connector to transition to FAILED.
+   *
+   * @param e Exception to be raised.
+   */
+  void raiseError(Exception e);
+
+  /**
+   * Check if the current context is set to preview.
+   * Developers can use this to check if the connector is running in preview/testing mode and do different
+   * operations on the records. For example, in sink connectors supporting previews this need to be
+   * checked and the records need to be send to the previewOutputs functions instead of the external system.
+   */
+  default boolean previewEnabled() {
+    return false;
+  };
 }

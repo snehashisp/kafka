@@ -42,4 +42,5 @@ public class HerderConnectorContext implements ConnectorContext {
     public void raiseError(Exception e) {
         herder.onFailure(connectorName, e);
     }
+
 }

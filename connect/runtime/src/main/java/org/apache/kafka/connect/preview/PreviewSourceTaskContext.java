@@ -23,4 +23,9 @@ public class PreviewSourceTaskContext implements SourceTaskContext {
   public OffsetStorageReader offsetStorageReader() {
     return offsetStorageReader;
   }
+
+  @Override
+  public boolean previewEnabled() {
+    return true;
+  }
 }

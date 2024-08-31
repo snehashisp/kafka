@@ -90,6 +90,13 @@ public class ConnectorConfig extends AbstractConfig {
             new InstantiableClassValidator()
     );
 
+    public static final String CONNECTOR_VERSION = "connector.version";
+    public static final String CONNECTOR_VERSION_DEFAULT = null;
+    private static final String CONNECTOR_VERSION_DOC = "Version of the connector.";
+    private static final String CONNECTOR_VERSION_DISPLAY = "Connector version";
+
+
+
     public static final String VALUE_CONVERTER_CLASS_CONFIG = WorkerConfig.VALUE_CONVERTER_CLASS_CONFIG;
     public static final String VALUE_CONVERTER_CLASS_DOC = WorkerConfig.VALUE_CONVERTER_CLASS_DOC;
     public static final String VALUE_CONVERTER_CLASS_DISPLAY = "Value converter class";
@@ -186,6 +193,7 @@ public class ConnectorConfig extends AbstractConfig {
     public static final String CONNECTOR_CLIENT_CONSUMER_OVERRIDES_PREFIX = "consumer.override.";
     public static final String CONNECTOR_CLIENT_ADMIN_OVERRIDES_PREFIX = "admin.override.";
     public static final String PREDICATES_PREFIX = "predicates.";
+
 
     private final EnrichedConnectorConfig enrichedConfig;
     private static class EnrichedConnectorConfig extends AbstractConfig {

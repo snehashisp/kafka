@@ -76,12 +76,20 @@ public class WorkerConfig extends AbstractConfig {
                     " independent of connectors it allows any connector to work with any serialization format." +
                     " Examples of common formats include JSON and Avro.";
 
+    public static final String KEY_CONVERTER_VERSION = "key.converter.version";
+    public static final String KEY_CONVERTER_VERSION_DEFAULT = null;
+    public static final String KEY_CONVERTER_VERSION_DOC = "Version of the key converter.";
+
     public static final String VALUE_CONVERTER_CLASS_CONFIG = "value.converter";
     public static final String VALUE_CONVERTER_CLASS_DOC =
             "Converter class used to convert between Kafka Connect format and the serialized form that is written to Kafka." +
                     " This controls the format of the values in messages written to or read from Kafka, and since this is" +
                     " independent of connectors it allows any connector to work with any serialization format." +
                     " Examples of common formats include JSON and Avro.";
+
+    public static final String VALUE_CONVERTER_VERSION = "value.converter.version";
+    public static final String VALUE_CONVERTER_VERSION_DEFAULT = null;
+    public static final String VALUE_CONVERTER_VERSION_DOC = "Version of the value converter.";
 
     public static final String HEADER_CONVERTER_CLASS_CONFIG = "header.converter";
     public static final String HEADER_CONVERTER_CLASS_DOC =

@@ -58,12 +58,11 @@ import org.apache.kafka.connect.storage.HeaderConverter;
 import org.apache.kafka.connect.storage.StatusBackingStore;
 import org.apache.kafka.connect.transforms.Transformation;
 import org.apache.kafka.connect.transforms.predicates.Predicate;
-import org.apache.kafka.connect.util.Callback;
-import org.apache.kafka.connect.util.ConnectorTaskId;
-import org.apache.kafka.connect.util.Stage;
-import org.apache.kafka.connect.util.TemporaryStage;
+import org.apache.kafka.connect.util.*;
 
 import org.apache.log4j.Level;
+import org.apache.maven.artifact.versioning.InvalidVersionSpecificationException;
+import org.apache.maven.artifact.versioning.VersionRange;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -138,7 +137,7 @@ public abstract class AbstractHerder implements Herder, TaskStatus.Listener, Con
     private final Time time;
     protected final Loggers loggers;
 
-    private final ConcurrentMap<String, Connector> tempConnectors = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Map<String, Connector>> tempConnectors = new ConcurrentHashMap<>();
 
     public AbstractHerder(Worker worker,
                           String workerId,
@@ -950,7 +949,8 @@ public abstract class AbstractHerder implements Herder, TaskStatus.Listener, Con
         return new ConfigValueInfo(configValue.name(), value, recommendedValues, configValue.errorMessages(), configValue.visible());
     }
 
-    protected Connector getConnector(String connType) {
+    protected Connector getConnector(String connType, VersionRange range) {
+        Connector conn = plugins().newConnector(connType, range);
         return tempConnectors.computeIfAbsent(connType, k -> plugins().newConnector(k));
     }
 
@@ -1092,16 +1092,22 @@ public abstract class AbstractHerder implements Herder, TaskStatus.Listener, Con
 
     @Override
     public List<ConfigKeyInfo> connectorPluginConfig(String pluginName) {
+        return connectorPluginConfig(pluginName, null);
+    }
+
+    @Override
+    public List<ConfigKeyInfo> connectorPluginConfig(String pluginName, VersionRange range) {
+
         Plugins p = plugins();
         Class<?> pluginClass;
         try {
-            pluginClass = p.pluginClass(pluginName);
+            pluginClass = p.pluginClass(pluginName, range);
         } catch (ClassNotFoundException cnfe) {
             throw new NotFoundException("Unknown plugin " + pluginName + ".");
         }
 
         try (LoaderSwap loaderSwap = p.withClassLoader(pluginClass.getClassLoader())) {
-            Object plugin = p.newPlugin(pluginName);
+            Object plugin = p.newPlugin(pluginName, range);
             // Contains definitions coming from Connect framework
             ConfigDef baseConfigDefs = null;
             // Contains definitions specifically declared on the plugin

@@ -34,6 +34,7 @@ import org.apache.kafka.connect.connector.policy.ConnectorClientConfigRequest;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.errors.NotFoundException;
 import org.apache.kafka.connect.runtime.isolation.LoaderSwap;
+import org.apache.kafka.connect.runtime.isolation.PluginDesc;
 import org.apache.kafka.connect.runtime.isolation.Plugins;
 import org.apache.kafka.connect.runtime.rest.entities.ActiveTopicsInfo;
 import org.apache.kafka.connect.runtime.rest.entities.ConfigInfo;
@@ -61,29 +62,19 @@ import org.apache.kafka.connect.transforms.predicates.Predicate;
 import org.apache.kafka.connect.util.*;
 
 import org.apache.log4j.Level;
+import org.apache.maven.artifact.versioning.ArtifactVersion;
+import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 import org.apache.maven.artifact.versioning.InvalidVersionSpecificationException;
 import org.apache.maven.artifact.versioning.VersionRange;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.ws.rs.DefaultValue;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
@@ -93,9 +84,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import static org.apache.kafka.connect.runtime.ConnectorConfig.HEADER_CONVERTER_CLASS_CONFIG;
-import static org.apache.kafka.connect.runtime.ConnectorConfig.KEY_CONVERTER_CLASS_CONFIG;
-import static org.apache.kafka.connect.runtime.ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG;
+import static org.apache.kafka.connect.runtime.ConnectorConfig.*;
 
 /**
  * Abstract Herder implementation which handles connector/task lifecycle tracking. Extensions
@@ -137,7 +126,7 @@ public abstract class AbstractHerder implements Herder, TaskStatus.Listener, Con
     private final Time time;
     protected final Loggers loggers;
 
-    private final ConcurrentMap<String, Map<String, Connector>> tempConnectors = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, SortedMap<ArtifactVersion, Connector>> tempConnectors = new ConcurrentHashMap<>();
 
     public AbstractHerder(Worker worker,
                           String workerId,
@@ -660,11 +649,18 @@ public abstract class AbstractHerder implements Herder, TaskStatus.Listener, Con
             }
         }
         String connType = connectorProps.get(ConnectorConfig.CONNECTOR_CLASS_CONFIG);
+        VersionRange connVersion = null;
+        try {
+            connVersion = ConnectUtils.connectorVersionRequirement(connectorProps.get(CONNECTOR_VERSION));
+        } catch (Exception e) {
+            throw new BadRequestException(e.getMessage());
+        }
+
         if (connType == null)
             throw new BadRequestException("Connector config " + connectorProps + " contains no connector type");
 
-        Connector connector = getConnector(connType);
-        ClassLoader connectorLoader = plugins().connectorLoader(connType);
+        Connector connector = getConnector(connType, connVersion);
+        ClassLoader connectorLoader = plugins().connectorLoader(connType, connVersion);
         try (LoaderSwap loaderSwap = plugins().withClassLoader(connectorLoader)) {
             org.apache.kafka.connect.health.ConnectorType connectorType;
             ConfigDef enrichedConfigDef;
@@ -950,8 +946,39 @@ public abstract class AbstractHerder implements Herder, TaskStatus.Listener, Con
     }
 
     protected Connector getConnector(String connType, VersionRange range) {
-        Connector conn = plugins().newConnector(connType, range);
-        return tempConnectors.computeIfAbsent(connType, k -> plugins().newConnector(k));
+
+        SortedMap<ArtifactVersion, Connector> connectors = tempConnectors.computeIfAbsent(connType, k -> {
+            SortedMap<ArtifactVersion, Connector> inner = new TreeMap<>();
+            for (PluginDesc<SourceConnector> desc: plugins().sourceConnectors()) {
+                inner.put(desc.encodedVersion(), null);
+            }
+            for (PluginDesc<SinkConnector> desc: plugins().sinkConnectors()) {
+                inner.put(desc.encodedVersion(), null);
+            }
+            return inner;
+        });
+
+        ArtifactVersion required = connectors.lastKey();
+        if (range != null) {
+            required = range.matchVersion(new ArrayList<>(connectors.keySet()));
+        }
+
+        if (required != null) {
+            final VersionRange requiredVersionRange = VersionRange.createFromVersion(required.toString());
+            connectors.computeIfAbsent(required, k -> plugins().newConnector(connType, requiredVersionRange));
+        } else {
+            // since the connectors map already contains all the possible version, if no version match is found
+            // we should through an exception. To keep things consistent the error we get should be the same as
+            // what the plugins interface returns if we try to load a connector version that is not available
+            // hence we call the following method which will throw the appropriate exception
+            plugins().newConnector(connType, range);
+        }
+
+        return connectors.get(required);
+    }
+
+    protected Connector getConnector(String connType) {
+        return getConnector(connType, null);
     }
 
     /**

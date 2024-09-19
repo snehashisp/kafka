@@ -100,6 +100,10 @@ public class WorkerConfig extends AbstractConfig {
                     " header values to strings and deserialize them by inferring the schemas.";
     public static final String HEADER_CONVERTER_CLASS_DEFAULT = SimpleHeaderConverter.class.getName();
 
+    public static final String HEADER_CONVERTER_VERSION = "header.converter.version";
+    public static final String HEADER_CONVERTER_VERSION_DEFAULT = null;
+    public static final String HEADER_CONVERTER_VERSION_DOC = "Version of the header converter.";
+
     public static final String TASK_SHUTDOWN_GRACEFUL_TIMEOUT_MS_CONFIG
             = "task.shutdown.graceful.timeout.ms";
     private static final String TASK_SHUTDOWN_GRACEFUL_TIMEOUT_MS_DOC =

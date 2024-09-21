@@ -662,6 +662,7 @@ public abstract class AbstractHerder implements Herder, TaskStatus.Listener, Con
         Connector connector = getConnector(connType, connVersion);
         ClassLoader connectorLoader = plugins().connectorLoader(connType, connVersion);
         try (LoaderSwap loaderSwap = plugins().withClassLoader(connectorLoader)) {
+            log.info("Validating connector {}, version {}", connType, connector.version());
             org.apache.kafka.connect.health.ConnectorType connectorType;
             ConfigDef enrichedConfigDef;
             Map<String, ConfigValue> validatedConnectorConfig;
@@ -949,10 +950,10 @@ public abstract class AbstractHerder implements Herder, TaskStatus.Listener, Con
 
         SortedMap<ArtifactVersion, Connector> connectors = tempConnectors.computeIfAbsent(connType, k -> {
             SortedMap<ArtifactVersion, Connector> inner = new TreeMap<>();
-            for (PluginDesc<SourceConnector> desc: plugins().sourceConnectors()) {
+            for (PluginDesc<SourceConnector> desc: plugins().sourceConnectors(connType)) {
                 inner.put(desc.encodedVersion(), null);
             }
-            for (PluginDesc<SinkConnector> desc: plugins().sinkConnectors()) {
+            for (PluginDesc<SinkConnector> desc: plugins().sinkConnectors(connType)) {
                 inner.put(desc.encodedVersion(), null);
             }
             return inner;

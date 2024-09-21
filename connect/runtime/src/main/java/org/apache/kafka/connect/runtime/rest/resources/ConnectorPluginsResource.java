@@ -158,7 +158,7 @@ public class ConnectorPluginsResource {
     @Path("/{pluginName}/config")
     @Operation(summary = "Get the configuration definition for the specified pluginName")
     public List<ConfigKeyInfo> getConnectorConfigDef(final @PathParam("pluginName") String pluginName,
-                                                     final @PathParam("version") @DefaultValue("latest") String version) {
+                                                     final @QueryParam("version") @DefaultValue("latest") String version) {
 
         VersionRange range = null;
         try {

@@ -24,11 +24,7 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.SortedMap;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.stream.Collectors;
@@ -86,11 +82,6 @@ public class DelegatingClassLoader extends URLClassLoader {
 
         SortedMap<PluginDesc<?>, ClassLoader> inner = pluginLoaders.get(name);
         if (inner == null) {
-            if (range != null) {
-                throw new VersionedPluginLoadingException(String.format(
-                    "Plugin %s was not found during plugin scan, " +
-                        "only plugins discovered with plugin scanners are eligible for explicit version specification", name));
-            }
             return null;
         }
 
@@ -105,20 +96,28 @@ public class DelegatingClassLoader extends URLClassLoader {
         return pluginClassLoader(name, null);
     }
 
-    ClassLoader connectorLoader(String connectorClassOrAlias, VersionRange range) {
+    ClassLoader connectorLoader(String connectorClassOrAlias, VersionRange range) throws ClassNotFoundException {
         String fullName = aliases.getOrDefault(connectorClassOrAlias, connectorClassOrAlias);
-        ClassLoader classLoader = pluginClassLoader(fullName, range);
-        if (classLoader == null) classLoader = this;
+        // need to actually load the class here to ensure that the correct classloader is used for the given version range
+        ClassLoader classLoader = loadVersionedPluginClass(fullName, range, false).getClassLoader();
         log.debug(
-            "Getting plugin class loader: '{}' for connector: {}",
-            classLoader,
-            connectorClassOrAlias
+                "Got plugin class loader: '{}' for connector: {}",
+                classLoader,
+                connectorClassOrAlias
         );
         return classLoader;
     }
 
     ClassLoader connectorLoader(String connectorClassOrAlias) {
-        return connectorLoader(connectorClassOrAlias, null);
+        String fullName = aliases.getOrDefault(connectorClassOrAlias, connectorClassOrAlias);
+        ClassLoader classLoader = pluginClassLoader(fullName);
+        if (classLoader == null) classLoader = this;
+        log.debug(
+                "Getting plugin class loader: '{}' for connector: {}",
+                classLoader,
+                connectorClassOrAlias
+        );
+        return classLoader;
     }
 
     String resolveFullClassName(String classOrAlias) {
@@ -139,12 +138,13 @@ public class DelegatingClassLoader extends URLClassLoader {
                 List<ArtifactVersion> versions = loaders.keySet().stream().map(PluginDesc::encodedVersion).collect(Collectors.toList());
                 version = range.matchVersion(versions);
                 if (version == null) {
+                    List<String> availableVersions = loaders.keySet().stream().map(PluginDesc::version).collect(Collectors.toList());
                     throw new VersionedPluginLoadingException(String.format(
                         "Plugin loader for %s not found that matches the version range %s, available versions: %s",
                         pluginName,
                         range,
-                        versions
-                    ));
+                        availableVersions
+                    ), availableVersions);
                 }
             }
 
@@ -199,24 +199,23 @@ public class DelegatingClassLoader extends URLClassLoader {
             plugin = super.loadClass(fullName, resolve);
             // if we are loading a plugin class from the parent classloader, we need to check if the version
             // matches the range
-            DefaultArtifactVersion pluginVersion;
+            String pluginVersion;
             try (LoaderSwap classLoader = PluginScanner.withClassLoader(plugin.getClassLoader())) {
-                pluginVersion = new DefaultArtifactVersion(
-                        PluginScanner.versionFor(plugin.getDeclaredConstructor().newInstance()));
+                pluginVersion = PluginScanner.versionFor(plugin.getDeclaredConstructor().newInstance());
             } catch (ReflectiveOperationException | LinkageError e) {
                 throw new VersionedPluginLoadingException(String.format(
-                        "Plugin %s was loaded but failed to determine its version",
+                        "Plugin %s was loaded with %s but failed to determine its version",
                         name
                 ), e);
             }
 
-            if (range != null && range.hasRestrictions() && !range.containsVersion(pluginVersion)) {
+            if (range != null && range.hasRestrictions() && !range.containsVersion(new DefaultArtifactVersion(pluginVersion))) {
                 throw new VersionedPluginLoadingException(String.format(
                         "Plugin %s was loaded with version %s which does not match the version range %s",
                         name,
                         pluginVersion,
                         range
-                ));
+                ), Collections.singletonList(pluginVersion));
             }
         }
 

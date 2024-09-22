@@ -38,7 +38,6 @@ import org.apache.kafka.connect.storage.HeaderConverter;
 import org.apache.kafka.connect.transforms.Transformation;
 import org.apache.kafka.connect.transforms.predicates.Predicate;
 
-import org.apache.kafka.connect.util.ConnectUtils;
 import org.apache.maven.artifact.versioning.DefaultArtifactVersion;
 import org.apache.maven.artifact.versioning.InvalidVersionSpecificationException;
 import org.apache.maven.artifact.versioning.VersionRange;
@@ -278,7 +277,7 @@ public class Plugins {
         return delegatingLoader.connectorLoader(connectorClassOrAlias);
     }
 
-    public ClassLoader connectorLoader(String connectorClassOrAlias, VersionRange range) throws VersionedPluginLoadingException {
+    public ClassLoader connectorLoader(String connectorClassOrAlias, VersionRange range) throws ClassNotFoundException, VersionedPluginLoadingException {
         return delegatingLoader.connectorLoader(connectorClassOrAlias, range);
     }
 
@@ -554,7 +553,7 @@ public class Plugins {
                 Predicate.class, ClassLoaderUsage.PLUGINS, scanResult.predicates());
     }
 
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     private <U> U getVersionedPlugin(
             AbstractConfig config,
             String classPropertyName,
@@ -568,7 +567,7 @@ public class Plugins {
         VersionRange range = null;
         if (version != null) {
             try {
-                range = ConnectUtils.connectorVersionRequirement(version);
+                range = VersionRange.createFromVersionSpec(version);
             } catch (InvalidVersionSpecificationException e) {
                 throw new ConnectException(String.format("Invalid version range for %s: %s %s", classPropertyName, version, e));
             }

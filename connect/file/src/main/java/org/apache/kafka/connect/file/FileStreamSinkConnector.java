@@ -21,6 +21,7 @@ import org.apache.kafka.common.config.AbstractConfig;
 import org.apache.kafka.common.config.ConfigDef;
 import org.apache.kafka.common.config.ConfigDef.Importance;
 import org.apache.kafka.common.config.ConfigDef.Type;
+import org.apache.kafka.common.utils.AppInfoParser;
 import org.apache.kafka.connect.connector.Task;
 import org.apache.kafka.connect.sink.SinkConnector;
 
@@ -39,14 +40,13 @@ public class FileStreamSinkConnector extends SinkConnector {
     private static final Logger log = LoggerFactory.getLogger(FileStreamSinkConnector.class);
     public static final String FILE_CONFIG = "file";
     static final ConfigDef CONFIG_DEF = new ConfigDef()
-        .define(FILE_CONFIG, Type.STRING, null, Importance.HIGH, "Destination filename. If not specified, the standard output will be used")
-            .define("v1.1.4", Type.STRING, "default", Importance.HIGH, "test config");
+        .define(FILE_CONFIG, Type.STRING, null, Importance.HIGH, "Destination filename. If not specified, the standard output will be used");
 
     private Map<String, String> props;
 
     @Override
     public String version() {
-        return "1.1.4";
+        return AppInfoParser.getVersion();
     }
 
     @Override

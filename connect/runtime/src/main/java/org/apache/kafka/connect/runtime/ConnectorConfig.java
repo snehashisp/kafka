@@ -27,6 +27,7 @@ import org.apache.kafka.connect.connector.ConnectRecord;
 import org.apache.kafka.connect.errors.ConnectException;
 import org.apache.kafka.connect.runtime.errors.ToleranceType;
 import org.apache.kafka.connect.runtime.isolation.PluginDesc;
+import org.apache.kafka.connect.runtime.isolation.PluginUtils;
 import org.apache.kafka.connect.runtime.isolation.Plugins;
 import org.apache.kafka.connect.storage.Converter;
 import org.apache.kafka.connect.storage.HeaderConverter;
@@ -35,6 +36,7 @@ import org.apache.kafka.connect.transforms.predicates.Predicate;
 import org.apache.kafka.connect.util.ConcreteSubClassValidator;
 import org.apache.kafka.connect.util.InstantiableClassValidator;
 
+import org.apache.kafka.connect.util.PluginVersionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,6 +84,13 @@ public class ConnectorConfig extends AbstractConfig {
                     " or use \"FileStreamSink\" or \"FileStreamSinkConnector\" to make the configuration a bit shorter";
     private static final String CONNECTOR_CLASS_DISPLAY = "Connector class";
 
+    public static final String CONNECTOR_VERSION = "connector.version";
+    private static final String CONNECTOR_VERSION_DEFAULT = null;
+    private static final String CONNECTOR_VERSION_DOC = "Version of the connector.";
+    private static final String CONNECTOR_VERSION_DISPLAY = "Connector version";
+    private static final ConfigDef.Validator CONNECTOR_VERSION_VALIDATOR = new PluginVersionUtils.PluginVersionValidator();
+    private static final ConfigDef.Recommender CONNECTOR_VERSION_RECOMMENDER = new PluginVersionUtils.ConnectorPluginVersionRecommender();
+
     public static final String KEY_CONVERTER_CLASS_CONFIG = WorkerConfig.KEY_CONVERTER_CLASS_CONFIG;
     public static final String KEY_CONVERTER_CLASS_DOC = WorkerConfig.KEY_CONVERTER_CLASS_DOC;
     public static final String KEY_CONVERTER_CLASS_DISPLAY = "Key converter class";
@@ -90,10 +99,13 @@ public class ConnectorConfig extends AbstractConfig {
             new InstantiableClassValidator()
     );
 
-    public static final String CONNECTOR_VERSION = "connector.version";
-    public static final String CONNECTOR_VERSION_DEFAULT = null;
-    private static final String CONNECTOR_VERSION_DOC = "Version of the connector.";
-    private static final String CONNECTOR_VERSION_DISPLAY = "Connector version";
+    public static final String KEY_CONVERTER_VERSION_CONFIG = WorkerConfig.KEY_CONVERTER_VERSION;
+    private static final String KEY_CONVERTER_VERSION_DEFAULT = null;
+    private static final String KEY_CONVERTER_VERSION_DOC = "Version of the key converter.";
+    private static final String KEY_CONVERTER_VERSION_DISPLAY = "Key converter version";
+    private static final ConfigDef.Validator KEY_CONVERTER_VERSION_VALIDATOR = new PluginVersionUtils.PluginVersionValidator();
+    private static final ConfigDef.Recommender KEY_CONVERTER_VERSION_RECOMMENDER = new PluginVersionUtils.KeyConverterPluginVersionRecommender();
+
 
     public static final String VALUE_CONVERTER_CLASS_CONFIG = WorkerConfig.VALUE_CONVERTER_CLASS_CONFIG;
     public static final String VALUE_CONVERTER_CLASS_DOC = WorkerConfig.VALUE_CONVERTER_CLASS_DOC;
@@ -102,6 +114,13 @@ public class ConnectorConfig extends AbstractConfig {
             ConcreteSubClassValidator.forSuperClass(Converter.class),
             new InstantiableClassValidator()
     );
+
+    public static final String VALUE_CONVERTER_VERSION_CONFIG = WorkerConfig.VALUE_CONVERTER_VERSION;
+    private static final String VALUE_CONVERTER_VERSION_DEFAULT = null;
+    private static final String VALUE_CONVERTER_VERSION_DOC = "Version of the value converter.";
+    private static final String VALUE_CONVERTER_VERSION_DISPLAY = "Value converter version";
+    private static final ConfigDef.Validator VALUE_CONVERTER_VERSION_VALIDATOR = new PluginVersionUtils.PluginVersionValidator();
+    private static final ConfigDef.Recommender VALUE_CONVERTER_VERSION_RECOMMENDER = new PluginVersionUtils.ValueConverterPluginVersionRecommender();
 
     public static final String HEADER_CONVERTER_CLASS_CONFIG = WorkerConfig.HEADER_CONVERTER_CLASS_CONFIG;
     public static final String HEADER_CONVERTER_CLASS_DOC = WorkerConfig.HEADER_CONVERTER_CLASS_DOC;
@@ -113,6 +132,13 @@ public class ConnectorConfig extends AbstractConfig {
             ConcreteSubClassValidator.forSuperClass(HeaderConverter.class),
             new InstantiableClassValidator()
     );
+
+    public static final String HEADER_CONVERTER_VERSION_CONFIG = WorkerConfig.HEADER_CONVERTER_VERSION;
+    private static final String HEADER_CONVERTER_VERSION_DEFAULT = null;
+    private static final String HEADER_CONVERTER_VERSION_DOC = "Version of the header converter.";
+    private static final String HEADER_CONVERTER_VERSION_DISPLAY = "Header converter version";
+    private static final ConfigDef.Validator HEADER_CONVERTER_VERSION_VALIDATOR = new PluginVersionUtils.PluginVersionValidator();
+    private static final ConfigDef.Recommender HEADER_CONVERTER_VERSION_RECOMMENDER = new PluginVersionUtils.HeaderConverterPluginVersionRecommender();
 
     public static final String TASKS_MAX_CONFIG = "tasks.max";
     private static final String TASKS_MAX_DOC = "Maximum number of tasks to use for this connector.";
@@ -211,12 +237,15 @@ public class ConnectorConfig extends AbstractConfig {
     public static ConfigDef BASE_CONFIGS = new ConfigDef()
             .define(NAME_CONFIG, Type.STRING, ConfigDef.NO_DEFAULT_VALUE, nonEmptyStringWithoutControlChars(), Importance.HIGH, NAME_DOC, COMMON_GROUP, ++orderInGroup, Width.MEDIUM, NAME_DISPLAY)
             .define(CONNECTOR_CLASS_CONFIG, Type.STRING, Importance.HIGH, CONNECTOR_CLASS_DOC, COMMON_GROUP, ++orderInGroup, Width.LONG, CONNECTOR_CLASS_DISPLAY)
-            .define(CONNECTOR_VERSION, Type.STRING, Importance.MEDIUM, CONNECTOR_VERSION_DOC, COMMON_GROUP, ++orderInGroup, Width.MEDIUM, CONNECTOR_VERSION_DISPLAY)
+            .define(CONNECTOR_VERSION, Type.STRING, CONNECTOR_VERSION_DEFAULT, CONNECTOR_VERSION_VALIDATOR, Importance.MEDIUM, CONNECTOR_VERSION_DOC, COMMON_GROUP, ++orderInGroup, Width.MEDIUM, CONNECTOR_VERSION_DISPLAY, CONNECTOR_VERSION_RECOMMENDER)
             .define(TASKS_MAX_CONFIG, Type.INT, TASKS_MAX_DEFAULT, atLeast(TASKS_MIN_CONFIG), Importance.HIGH, TASKS_MAX_DOC, COMMON_GROUP, ++orderInGroup, Width.SHORT, TASK_MAX_DISPLAY)
             .define(TASKS_MAX_ENFORCE_CONFIG, Type.BOOLEAN, TASKS_MAX_ENFORCE_DEFAULT, Importance.LOW, TASKS_MAX_ENFORCE_DOC, COMMON_GROUP, ++orderInGroup, Width.SHORT, TASKS_MAX_ENFORCE_DISPLAY)
             .define(KEY_CONVERTER_CLASS_CONFIG, Type.CLASS, null, KEY_CONVERTER_CLASS_VALIDATOR, Importance.LOW, KEY_CONVERTER_CLASS_DOC, COMMON_GROUP, ++orderInGroup, Width.SHORT, KEY_CONVERTER_CLASS_DISPLAY)
+            .define(KEY_CONVERTER_VERSION_CONFIG, Type.STRING, KEY_CONVERTER_VERSION_DEFAULT, KEY_CONVERTER_VERSION_VALIDATOR, Importance.LOW, KEY_CONVERTER_VERSION_DOC, COMMON_GROUP, ++orderInGroup, Width.SHORT, KEY_CONVERTER_VERSION_DISPLAY, KEY_CONVERTER_VERSION_RECOMMENDER)
             .define(VALUE_CONVERTER_CLASS_CONFIG, Type.CLASS, null, VALUE_CONVERTER_CLASS_VALIDATOR, Importance.LOW, VALUE_CONVERTER_CLASS_DOC, COMMON_GROUP, ++orderInGroup, Width.SHORT, VALUE_CONVERTER_CLASS_DISPLAY)
+            .define(VALUE_CONVERTER_VERSION_CONFIG, Type.STRING, VALUE_CONVERTER_VERSION_DEFAULT, VALUE_CONVERTER_VERSION_VALIDATOR, Importance.LOW, VALUE_CONVERTER_VERSION_DOC, COMMON_GROUP, ++orderInGroup, Width.SHORT, VALUE_CONVERTER_VERSION_DISPLAY, VALUE_CONVERTER_VERSION_RECOMMENDER)
             .define(HEADER_CONVERTER_CLASS_CONFIG, Type.CLASS, HEADER_CONVERTER_CLASS_DEFAULT, HEADER_CONVERTER_CLASS_VALIDATOR, Importance.LOW, HEADER_CONVERTER_CLASS_DOC, COMMON_GROUP, ++orderInGroup, Width.SHORT, HEADER_CONVERTER_CLASS_DISPLAY)
+            .define(HEADER_CONVERTER_VERSION_CONFIG, Type.STRING, HEADER_CONVERTER_VERSION_DEFAULT, HEADER_CONVERTER_VERSION_VALIDATOR, Importance.LOW, HEADER_CONVERTER_VERSION_DOC, COMMON_GROUP, ++orderInGroup, Width.SHORT, HEADER_CONVERTER_VERSION_DISPLAY, HEADER_CONVERTER_VERSION_RECOMMENDER)
             .define(TRANSFORMS_CONFIG, Type.LIST, Collections.emptyList(), aliasValidator("transformation"), Importance.LOW, TRANSFORMS_DOC, TRANSFORMS_GROUP, ++orderInGroup, Width.LONG, TRANSFORMS_DISPLAY)
             .define(PREDICATES_CONFIG, Type.LIST, Collections.emptyList(), aliasValidator("predicate"), Importance.LOW, PREDICATES_DOC, PREDICATES_GROUP, ++orderInGroup, Width.LONG, PREDICATES_DISPLAY)
             .define(CONFIG_RELOAD_ACTION_CONFIG, Type.STRING, CONFIG_RELOAD_ACTION_RESTART,

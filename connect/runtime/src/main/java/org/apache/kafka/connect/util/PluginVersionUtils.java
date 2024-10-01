@@ -10,11 +10,20 @@ import org.apache.kafka.connect.runtime.rest.entities.ConnectorType;
 import org.apache.maven.artifact.versioning.InvalidVersionSpecificationException;
 import org.apache.maven.artifact.versioning.VersionRange;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class PluginVersionUtils {
+
+    private static Plugins plugins = null;
+
+    public static void setPlugins(Plugins plugins) {
+        PluginVersionUtils.plugins = plugins;
+    }
 
     public static VersionRange connectorVersionRequirement(String version) throws InvalidVersionSpecificationException {
         if (version == null || version.equals("latest")) {
@@ -43,50 +52,103 @@ public class PluginVersionUtils {
                 throw new ConfigException(name, value, e.getMessage());
             }
         }
+
     }
 
-    public static class PluginVersionRecommender implements ConfigDef.Recommender {
-
-        Plugins plugins;
-
-        public PluginVersionRecommender() {
-            setPlugins(null);
-        }
-
-        void setPlugins(Plugins plugins) {
-            this.plugins = plugins;
-        }
+    public static class ConnectorPluginVersionRecommender implements ConfigDef.Recommender {
 
         @SuppressWarnings({"unchecked", "rawtypes"})
         @Override
         public List<Object> validValues(String name, Map<String, Object> parsedConfig) {
             if (plugins == null) {
-                return null;
+                return Collections.emptyList();
             }
-            switch (name) {
-                case ConnectorConfig.CONNECTOR_VERSION:
-                    Class connectorClass = parsedConfig.get(ConnectorConfig.CONNECTOR_CLASS_CONFIG).getClass();
-                    if (connectorClass == null) {
-                        //should never happen
-                        throw new ConfigException("Connector class is not set");
-                    }
-                    switch (ConnectorType.from(connectorClass)) {
-                        case SOURCE:
-                            return plugins.sourceConnectors(connectorClass.getName()).stream()
-                                    .map(PluginDesc::version).collect(Collectors.toList());
-                        case SINK:
-                            return plugins.sinkConnectors(connectorClass.getName()).stream()
-                                    .map(PluginDesc::version).collect(Collectors.toList());
-                    }
-                default:
-                    throw new IllegalArgumentException("Unsupported config: " + name);
+            Class connectorClass = (Class) parsedConfig.get(ConnectorConfig.CONNECTOR_CLASS_CONFIG);
+            if (connectorClass == null) {
+                //should never happen
+                return Collections.emptyList();
             }
+            switch (ConnectorType.from(connectorClass)) {
+                case SOURCE:
+                    return plugins.sourceConnectors(connectorClass.getName()).stream()
+                            .map(PluginDesc::version).collect(Collectors.toList());
+                case SINK:
+                    return plugins.sinkConnectors(connectorClass.getName()).stream()
+                            .map(PluginDesc::version).collect(Collectors.toList());
+            }
+            return Collections.emptyList();
         }
-
 
         @Override
         public boolean visible(String name, Map<String, Object> parsedConfig) {
-            return true;
+            return parsedConfig.containsKey(ConnectorConfig.CONNECTOR_CLASS_CONFIG);
         }
 
+    }
+
+    public static abstract class ConverterPluginVersionRecommender implements ConfigDef.Recommender {
+
+        abstract protected String converterConfig();
+
+        protected Function<String, List<Object>> recommendations() {
+            return (converterClass) -> plugins.converters(converterClass).stream()
+                    .map(PluginDesc::version).collect(Collectors.toList());
+        }
+
+
+        @SuppressWarnings({"rawtypes"})
+        @Override
+        public List<Object> validValues(String name, Map<String, Object> parsedConfig) {
+            if (plugins == null) {
+                return Collections.emptyList();
+            }
+            if (!parsedConfig.containsKey(converterConfig())) {
+                return Collections.emptyList();
+            }
+            Class converterClass = (Class) parsedConfig.get(converterConfig());
+            return recommendations().apply(converterClass.getName());
+        }
+
+        @Override
+        public boolean visible(String name, Map<String, Object> parsedConfig) {
+            return parsedConfig.containsKey(converterConfig());
+        }
+    }
+
+    public static class KeyConverterPluginVersionRecommender
+            extends PluginVersionUtils.ConverterPluginVersionRecommender {
+
+        @Override
+        protected String converterConfig() {
+            return ConnectorConfig.KEY_CONVERTER_CLASS_CONFIG;
+        }
+
+    }
+
+    public static class ValueConverterPluginVersionRecommender
+            extends PluginVersionUtils.ConverterPluginVersionRecommender {
+
+        @Override
+        protected String converterConfig() {
+            return ConnectorConfig.VALUE_CONVERTER_CLASS_CONFIG;
+        }
+    }
+
+    public static class HeaderConverterPluginVersionRecommender
+            extends PluginVersionUtils.ConverterPluginVersionRecommender {
+
+        @Override
+        protected String converterConfig() {
+            return ConnectorConfig.HEADER_CONVERTER_CLASS_CONFIG;
+        }
+
+        @Override
+        protected Function<String, List<Object>> recommendations() {
+            return (converterClass) -> plugins.headerConverters(converterClass).stream()
+                    .map(PluginDesc::version).collect(Collectors.toList());
+        }
+    }
 }
+
+
+

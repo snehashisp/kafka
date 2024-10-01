@@ -142,12 +142,12 @@ public class ConnectorConfig extends AbstractConfig {
     public static final String CONFIG_RELOAD_ACTION_CONFIG = "config.action.reload";
     private static final String CONFIG_RELOAD_ACTION_DOC =
             "The action that Connect should take on the connector when changes in external " +
-            "configuration providers result in a change in the connector's configuration properties. " +
-            "A value of 'none' indicates that Connect will do nothing. " +
-            "A value of 'restart' indicates that Connect should restart/reload the connector with the " +
-            "updated configuration properties." +
-            "The restart may actually be scheduled in the future if the external configuration provider " +
-            "indicates that a configuration value will expire in the future.";
+                    "configuration providers result in a change in the connector's configuration properties. " +
+                    "A value of 'none' indicates that Connect will do nothing. " +
+                    "A value of 'restart' indicates that Connect should restart/reload the connector with the " +
+                    "updated configuration properties." +
+                    "The restart may actually be scheduled in the future if the external configuration provider " +
+                    "indicates that a configuration value will expire in the future.";
 
     private static final String CONFIG_RELOAD_ACTION_DISPLAY = "Reload Action";
     public static final String CONFIG_RELOAD_ACTION_NONE = Herder.ConfigReloadAction.NONE.name().toLowerCase(Locale.ROOT);
@@ -191,9 +191,12 @@ public class ConnectorConfig extends AbstractConfig {
     public static final String CONNECTOR_CLIENT_CONSUMER_OVERRIDES_PREFIX = "consumer.override.";
     public static final String CONNECTOR_CLIENT_ADMIN_OVERRIDES_PREFIX = "admin.override.";
     public static final String PREDICATES_PREFIX = "predicates.";
+    private static int orderInGroup = 0;
+    private static int orderInErrorGroup = 0;
 
 
     private final EnrichedConnectorConfig enrichedConfig;
+
     private static class EnrichedConnectorConfig extends AbstractConfig {
         EnrichedConnectorConfig(ConfigDef configDef, Map<String, String> props) {
             super(configDef, props);
@@ -205,34 +208,34 @@ public class ConnectorConfig extends AbstractConfig {
         }
     }
 
+    public static ConfigDef BASE_CONFIGS = new ConfigDef()
+            .define(NAME_CONFIG, Type.STRING, ConfigDef.NO_DEFAULT_VALUE, nonEmptyStringWithoutControlChars(), Importance.HIGH, NAME_DOC, COMMON_GROUP, ++orderInGroup, Width.MEDIUM, NAME_DISPLAY)
+            .define(CONNECTOR_CLASS_CONFIG, Type.STRING, Importance.HIGH, CONNECTOR_CLASS_DOC, COMMON_GROUP, ++orderInGroup, Width.LONG, CONNECTOR_CLASS_DISPLAY)
+            .define(CONNECTOR_VERSION, Type.STRING, Importance.MEDIUM, CONNECTOR_VERSION_DOC, COMMON_GROUP, ++orderInGroup, Width.MEDIUM, CONNECTOR_VERSION_DISPLAY)
+            .define(TASKS_MAX_CONFIG, Type.INT, TASKS_MAX_DEFAULT, atLeast(TASKS_MIN_CONFIG), Importance.HIGH, TASKS_MAX_DOC, COMMON_GROUP, ++orderInGroup, Width.SHORT, TASK_MAX_DISPLAY)
+            .define(TASKS_MAX_ENFORCE_CONFIG, Type.BOOLEAN, TASKS_MAX_ENFORCE_DEFAULT, Importance.LOW, TASKS_MAX_ENFORCE_DOC, COMMON_GROUP, ++orderInGroup, Width.SHORT, TASKS_MAX_ENFORCE_DISPLAY)
+            .define(KEY_CONVERTER_CLASS_CONFIG, Type.CLASS, null, KEY_CONVERTER_CLASS_VALIDATOR, Importance.LOW, KEY_CONVERTER_CLASS_DOC, COMMON_GROUP, ++orderInGroup, Width.SHORT, KEY_CONVERTER_CLASS_DISPLAY)
+            .define(VALUE_CONVERTER_CLASS_CONFIG, Type.CLASS, null, VALUE_CONVERTER_CLASS_VALIDATOR, Importance.LOW, VALUE_CONVERTER_CLASS_DOC, COMMON_GROUP, ++orderInGroup, Width.SHORT, VALUE_CONVERTER_CLASS_DISPLAY)
+            .define(HEADER_CONVERTER_CLASS_CONFIG, Type.CLASS, HEADER_CONVERTER_CLASS_DEFAULT, HEADER_CONVERTER_CLASS_VALIDATOR, Importance.LOW, HEADER_CONVERTER_CLASS_DOC, COMMON_GROUP, ++orderInGroup, Width.SHORT, HEADER_CONVERTER_CLASS_DISPLAY)
+            .define(TRANSFORMS_CONFIG, Type.LIST, Collections.emptyList(), aliasValidator("transformation"), Importance.LOW, TRANSFORMS_DOC, TRANSFORMS_GROUP, ++orderInGroup, Width.LONG, TRANSFORMS_DISPLAY)
+            .define(PREDICATES_CONFIG, Type.LIST, Collections.emptyList(), aliasValidator("predicate"), Importance.LOW, PREDICATES_DOC, PREDICATES_GROUP, ++orderInGroup, Width.LONG, PREDICATES_DISPLAY)
+            .define(CONFIG_RELOAD_ACTION_CONFIG, Type.STRING, CONFIG_RELOAD_ACTION_RESTART,
+                    in(CONFIG_RELOAD_ACTION_NONE, CONFIG_RELOAD_ACTION_RESTART), Importance.LOW,
+                    CONFIG_RELOAD_ACTION_DOC, COMMON_GROUP, ++orderInGroup, Width.MEDIUM, CONFIG_RELOAD_ACTION_DISPLAY)
+            .define(ERRORS_RETRY_TIMEOUT_CONFIG, Type.LONG, ERRORS_RETRY_TIMEOUT_DEFAULT, Importance.MEDIUM,
+                    ERRORS_RETRY_TIMEOUT_DOC, ERROR_GROUP, ++orderInErrorGroup, Width.MEDIUM, ERRORS_RETRY_TIMEOUT_DISPLAY)
+            .define(ERRORS_RETRY_MAX_DELAY_CONFIG, Type.LONG, ERRORS_RETRY_MAX_DELAY_DEFAULT, Importance.MEDIUM,
+                    ERRORS_RETRY_MAX_DELAY_DOC, ERROR_GROUP, ++orderInErrorGroup, Width.MEDIUM, ERRORS_RETRY_MAX_DELAY_DISPLAY)
+            .define(ERRORS_TOLERANCE_CONFIG, Type.STRING, ERRORS_TOLERANCE_DEFAULT.value(),
+                    in(ToleranceType.NONE.value(), ToleranceType.ALL.value()), Importance.MEDIUM,
+                    ERRORS_TOLERANCE_DOC, ERROR_GROUP, ++orderInErrorGroup, Width.SHORT, ERRORS_TOLERANCE_DISPLAY)
+            .define(ERRORS_LOG_ENABLE_CONFIG, Type.BOOLEAN, ERRORS_LOG_ENABLE_DEFAULT, Importance.MEDIUM,
+                    ERRORS_LOG_ENABLE_DOC, ERROR_GROUP, ++orderInErrorGroup, Width.SHORT, ERRORS_LOG_ENABLE_DISPLAY)
+            .define(ERRORS_LOG_INCLUDE_MESSAGES_CONFIG, Type.BOOLEAN, ERRORS_LOG_INCLUDE_MESSAGES_DEFAULT, Importance.MEDIUM,
+                    ERRORS_LOG_INCLUDE_MESSAGES_DOC, ERROR_GROUP, ++orderInErrorGroup, Width.SHORT, ERRORS_LOG_INCLUDE_MESSAGES_DISPLAY);
+
     public static ConfigDef configDef() {
-        int orderInGroup = 0;
-        int orderInErrorGroup = 0;
-        return new ConfigDef()
-                .define(NAME_CONFIG, Type.STRING, ConfigDef.NO_DEFAULT_VALUE, nonEmptyStringWithoutControlChars(), Importance.HIGH, NAME_DOC, COMMON_GROUP, ++orderInGroup, Width.MEDIUM, NAME_DISPLAY)
-                .define(CONNECTOR_CLASS_CONFIG, Type.STRING, Importance.HIGH, CONNECTOR_CLASS_DOC, COMMON_GROUP, ++orderInGroup, Width.LONG, CONNECTOR_CLASS_DISPLAY)
-                .define(CONNECTOR_VERSION, Type.STRING, Importance.MEDIUM, CONNECTOR_VERSION_DOC, COMMON_GROUP, ++orderInGroup, Width.MEDIUM, CONNECTOR_VERSION_DISPLAY)
-                .define(TASKS_MAX_CONFIG, Type.INT, TASKS_MAX_DEFAULT, atLeast(TASKS_MIN_CONFIG), Importance.HIGH, TASKS_MAX_DOC, COMMON_GROUP, ++orderInGroup, Width.SHORT, TASK_MAX_DISPLAY)
-                .define(TASKS_MAX_ENFORCE_CONFIG, Type.BOOLEAN, TASKS_MAX_ENFORCE_DEFAULT, Importance.LOW, TASKS_MAX_ENFORCE_DOC, COMMON_GROUP, ++orderInGroup, Width.SHORT, TASKS_MAX_ENFORCE_DISPLAY)
-                .define(KEY_CONVERTER_CLASS_CONFIG, Type.CLASS, null, KEY_CONVERTER_CLASS_VALIDATOR, Importance.LOW, KEY_CONVERTER_CLASS_DOC, COMMON_GROUP, ++orderInGroup, Width.SHORT, KEY_CONVERTER_CLASS_DISPLAY)
-                .define(VALUE_CONVERTER_CLASS_CONFIG, Type.CLASS, null, VALUE_CONVERTER_CLASS_VALIDATOR, Importance.LOW, VALUE_CONVERTER_CLASS_DOC, COMMON_GROUP, ++orderInGroup, Width.SHORT, VALUE_CONVERTER_CLASS_DISPLAY)
-                .define(HEADER_CONVERTER_CLASS_CONFIG, Type.CLASS, HEADER_CONVERTER_CLASS_DEFAULT, HEADER_CONVERTER_CLASS_VALIDATOR, Importance.LOW, HEADER_CONVERTER_CLASS_DOC, COMMON_GROUP, ++orderInGroup, Width.SHORT, HEADER_CONVERTER_CLASS_DISPLAY)
-                .define(TRANSFORMS_CONFIG, Type.LIST, Collections.emptyList(), aliasValidator("transformation"), Importance.LOW, TRANSFORMS_DOC, TRANSFORMS_GROUP, ++orderInGroup, Width.LONG, TRANSFORMS_DISPLAY)
-                .define(PREDICATES_CONFIG, Type.LIST, Collections.emptyList(), aliasValidator("predicate"), Importance.LOW, PREDICATES_DOC, PREDICATES_GROUP, ++orderInGroup, Width.LONG, PREDICATES_DISPLAY)
-                .define(CONFIG_RELOAD_ACTION_CONFIG, Type.STRING, CONFIG_RELOAD_ACTION_RESTART,
-                        in(CONFIG_RELOAD_ACTION_NONE, CONFIG_RELOAD_ACTION_RESTART), Importance.LOW,
-                        CONFIG_RELOAD_ACTION_DOC, COMMON_GROUP, ++orderInGroup, Width.MEDIUM, CONFIG_RELOAD_ACTION_DISPLAY)
-                .define(ERRORS_RETRY_TIMEOUT_CONFIG, Type.LONG, ERRORS_RETRY_TIMEOUT_DEFAULT, Importance.MEDIUM,
-                        ERRORS_RETRY_TIMEOUT_DOC, ERROR_GROUP, ++orderInErrorGroup, Width.MEDIUM, ERRORS_RETRY_TIMEOUT_DISPLAY)
-                .define(ERRORS_RETRY_MAX_DELAY_CONFIG, Type.LONG, ERRORS_RETRY_MAX_DELAY_DEFAULT, Importance.MEDIUM,
-                        ERRORS_RETRY_MAX_DELAY_DOC, ERROR_GROUP, ++orderInErrorGroup, Width.MEDIUM, ERRORS_RETRY_MAX_DELAY_DISPLAY)
-                .define(ERRORS_TOLERANCE_CONFIG, Type.STRING, ERRORS_TOLERANCE_DEFAULT.value(),
-                        in(ToleranceType.NONE.value(), ToleranceType.ALL.value()), Importance.MEDIUM,
-                        ERRORS_TOLERANCE_DOC, ERROR_GROUP, ++orderInErrorGroup, Width.SHORT, ERRORS_TOLERANCE_DISPLAY)
-                .define(ERRORS_LOG_ENABLE_CONFIG, Type.BOOLEAN, ERRORS_LOG_ENABLE_DEFAULT, Importance.MEDIUM,
-                        ERRORS_LOG_ENABLE_DOC, ERROR_GROUP, ++orderInErrorGroup, Width.SHORT, ERRORS_LOG_ENABLE_DISPLAY)
-                .define(ERRORS_LOG_INCLUDE_MESSAGES_CONFIG, Type.BOOLEAN, ERRORS_LOG_INCLUDE_MESSAGES_DEFAULT, Importance.MEDIUM,
-                        ERRORS_LOG_INCLUDE_MESSAGES_DOC, ERROR_GROUP, ++orderInErrorGroup, Width.SHORT, ERRORS_LOG_INCLUDE_MESSAGES_DISPLAY);
+        return new ConfigDef(BASE_CONFIGS);
     }
 
     private static ConfigDef.CompositeValidator aliasValidator(String kind) {
@@ -284,7 +287,7 @@ public class ConnectorConfig extends AbstractConfig {
 
     public ToleranceType errorToleranceType() {
         String tolerance = getString(ERRORS_TOLERANCE_CONFIG);
-        for (ToleranceType type: ToleranceType.values()) {
+        for (ToleranceType type : ToleranceType.values()) {
             if (type.name().equalsIgnoreCase(tolerance)) {
                 return type;
             }
@@ -308,6 +311,10 @@ public class ConnectorConfig extends AbstractConfig {
         return getBoolean(TASKS_MAX_ENFORCE_CONFIG);
     }
 
+    public static void addVersionRecommendors(Plugins plugins) {
+
+    }
+
     /**
      * Returns the initialized list of {@link TransformationStage} which apply the
      * {@link Transformation transformations} and {@link Predicate predicates}
@@ -321,8 +328,7 @@ public class ConnectorConfig extends AbstractConfig {
             final String prefix = TRANSFORMS_CONFIG + "." + alias + ".";
 
             try {
-                @SuppressWarnings("unchecked")
-                final Transformation<R> transformation = Utils.newInstance(getClass(prefix + "type"), Transformation.class);
+                @SuppressWarnings("unchecked") final Transformation<R> transformation = Utils.newInstance(getClass(prefix + "type"), Transformation.class);
                 Map<String, Object> configs = originalsWithPrefix(prefix);
                 Object predicateAlias = configs.remove(TransformationStage.PREDICATE_CONFIG);
                 Object negate = configs.remove(TransformationStage.NEGATE_CONFIG);
@@ -373,17 +379,17 @@ public class ConnectorConfig extends AbstractConfig {
             @Override
             protected Stream<Map.Entry<String, ConfigDef.ConfigKey>> configDefsForClass(String typeConfig) {
                 return super.configDefsForClass(typeConfig)
-                    .filter(entry -> {
-                        // The implicit parameters mask any from the transformer with the same name
-                        if (TransformationStage.PREDICATE_CONFIG.equals(entry.getKey())
-                                || TransformationStage.NEGATE_CONFIG.equals(entry.getKey())) {
-                            log.warn("Transformer config {} is masked by implicit config of that name",
-                                    entry.getKey());
-                            return false;
-                        } else {
-                            return true;
-                        }
-                    });
+                        .filter(entry -> {
+                            // The implicit parameters mask any from the transformer with the same name
+                            if (TransformationStage.PREDICATE_CONFIG.equals(entry.getKey())
+                                    || TransformationStage.NEGATE_CONFIG.equals(entry.getKey())) {
+                                log.warn("Transformer config {} is masked by implicit config of that name",
+                                        entry.getKey());
+                                return false;
+                            } else {
+                                return true;
+                            }
+                        });
             }
 
             @Override
@@ -421,10 +427,11 @@ public class ConnectorConfig extends AbstractConfig {
     /**
      * An abstraction over "enrichable plugins" ({@link Transformation}s and {@link Predicate}s) used for computing the
      * contribution to a Connectors ConfigDef.
-     *
+     * <p>
      * This is not entirely elegant because
      * although they basically use the same "alias prefix" configuration idiom there are some differences.
      * The abstract method pattern is used to cope with this.
+     *
      * @param <T> The type of plugin (either {@code Transformation} or {@code Predicate}).
      */
     abstract static class EnrichablePlugin<T> {
@@ -448,7 +455,9 @@ public class ConnectorConfig extends AbstractConfig {
             this.requireFullConfig = requireFullConfig;
         }
 
-        /** Add the configs for this alias to the given {@code ConfigDef}. */
+        /**
+         * Add the configs for this alias to the given {@code ConfigDef}.
+         */
         void enrich(ConfigDef newDef) {
             Object aliases = ConfigDef.parseType(aliasConfig, props.get(aliasConfig), Type.LIST);
             if (!(aliases instanceof List)) {
@@ -468,14 +477,14 @@ public class ConnectorConfig extends AbstractConfig {
 
                 final String typeConfig = prefix + "type";
                 final ConfigDef.Validator typeValidator = ConfigDef.LambdaValidator.with(
-                    (String name, Object value) -> {
-                        validateProps(prefix);
-                        // The value will be null if the class couldn't be found; no point in performing follow-up validation
-                        if (value != null) {
-                            getConfigDefFromConfigProvidingClass(typeConfig, (Class<?>) value);
-                        }
-                    },
-                    () -> "valid configs for " + alias + " " + aliasKind.toLowerCase(Locale.ENGLISH));
+                        (String name, Object value) -> {
+                            validateProps(prefix);
+                            // The value will be null if the class couldn't be found; no point in performing follow-up validation
+                            if (value != null) {
+                                getConfigDefFromConfigProvidingClass(typeConfig, (Class<?>) value);
+                            }
+                        },
+                        () -> "valid configs for " + alias + " " + aliasKind.toLowerCase(Locale.ENGLISH));
                 newDef.define(typeConfig, Type.CLASS, ConfigDef.NO_DEFAULT_VALUE, typeValidator, Importance.HIGH,
                         "Class for the '" + alias + "' " + aliasKind.toLowerCase(Locale.ENGLISH) + ".", group, orderInGroup++, Width.LONG,
                         baseClass.getSimpleName() + " type for " + alias,
@@ -487,8 +496,11 @@ public class ConnectorConfig extends AbstractConfig {
             }
         }
 
-        /** Subclasses can add extra validation of the {@link #props}. */
-        protected void validateProps(String prefix) { }
+        /**
+         * Subclasses can add extra validation of the {@link #props}.
+         */
+        protected void validateProps(String prefix) {
+        }
 
         /**
          * Populates the ConfigDef according to the configs returned from {@code configs()} method of class
@@ -499,7 +511,6 @@ public class ConnectorConfig extends AbstractConfig {
             try {
                 configDefsForClass(typeConfig)
                         .forEach(entry -> configDef.define(entry.getValue()));
-
             } catch (ConfigException e) {
                 if (requireFullConfig) {
                     throw e;
@@ -520,7 +531,9 @@ public class ConnectorConfig extends AbstractConfig {
                     .configKeys().entrySet().stream();
         }
 
-        /** Get an initial ConfigDef */
+        /**
+         * Get an initial ConfigDef
+         */
         protected ConfigDef initialConfigDef() {
             return new ConfigDef();
         }
@@ -528,6 +541,7 @@ public class ConnectorConfig extends AbstractConfig {
         /**
          * Return {@link ConfigDef} from {@code cls}, which is expected to be a non-null {@code Class<T>},
          * by instantiating it and invoking {@link #config(T)}.
+         *
          * @param key
          * @param cls The subclass of the baseclass.
          */
@@ -546,10 +560,10 @@ public class ConnectorConfig extends AbstractConfig {
             ConfigDef configDef = config(pluginInstance);
             if (null == configDef) {
                 throw new ConnectException(
-                    String.format(
-                        "%s.config() must return a ConfigDef that is not null.",
-                        cls.getName()
-                    )
+                        String.format(
+                                "%s.config() must return a ConfigDef that is not null.",
+                                cls.getName()
+                        )
                 );
             }
             return configDef;

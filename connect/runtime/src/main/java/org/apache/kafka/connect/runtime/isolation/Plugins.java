@@ -553,7 +553,7 @@ public class Plugins {
                 Predicate.class, ClassLoaderUsage.PLUGINS, scanResult.predicates());
     }
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private <U> U getVersionedPlugin(
             AbstractConfig config,
             String classPropertyName,

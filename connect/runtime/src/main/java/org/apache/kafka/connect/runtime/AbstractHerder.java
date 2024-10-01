@@ -651,7 +651,7 @@ public abstract class AbstractHerder implements Herder, TaskStatus.Listener, Con
         String connType = connectorProps.get(ConnectorConfig.CONNECTOR_CLASS_CONFIG);
         VersionRange connVersion = null;
         try {
-            connVersion = ConnectUtils.connectorVersionRequirement(connectorProps.get(CONNECTOR_VERSION));
+            connVersion = PluginVersionUtils.connectorVersionRequirement(connectorProps.get(CONNECTOR_VERSION));
         } catch (Exception e) {
             throw new BadRequestException(e.getMessage());
         }
@@ -660,8 +660,7 @@ public abstract class AbstractHerder implements Herder, TaskStatus.Listener, Con
             throw new BadRequestException("Connector config " + connectorProps + " contains no connector type");
 
         Connector connector = getConnector(connType, connVersion);
-        ClassLoader connectorLoader = plugins().connectorLoader(connType, connVersion);
-        try (LoaderSwap loaderSwap = plugins().withClassLoader(connectorLoader)) {
+        try (LoaderSwap loaderSwap = plugins().withClassLoader(connector.getClass().getClassLoader())) {
             log.info("Validating connector {}, version {}", connType, connector.version());
             org.apache.kafka.connect.health.ConnectorType connectorType;
             ConfigDef enrichedConfigDef;

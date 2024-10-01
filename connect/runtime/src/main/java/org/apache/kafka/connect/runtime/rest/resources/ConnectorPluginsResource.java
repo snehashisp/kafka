@@ -25,10 +25,7 @@ import org.apache.kafka.connect.runtime.rest.entities.ConfigInfos;
 import org.apache.kafka.connect.runtime.rest.entities.ConfigKeyInfo;
 import org.apache.kafka.connect.runtime.rest.entities.PluginInfo;
 import org.apache.kafka.connect.runtime.rest.errors.ConnectRestException;
-import org.apache.kafka.connect.util.ConnectUtils;
-import org.apache.kafka.connect.util.FutureCallback;
-import org.apache.kafka.connect.util.Stage;
-import org.apache.kafka.connect.util.StagedTimeoutException;
+import org.apache.kafka.connect.util.*;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -162,7 +159,7 @@ public class ConnectorPluginsResource {
 
         VersionRange range = null;
         try {
-            range = ConnectUtils.connectorVersionRequirement(version);
+            range = PluginVersionUtils.connectorVersionRequirement(version);
         } catch (InvalidVersionSpecificationException e) {
             throw new BadRequestException("Invalid version specification: " + version);
         }

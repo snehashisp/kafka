@@ -63,27 +63,59 @@ public class PluginVersionUtils {
             if (plugins == null) {
                 return Collections.emptyList();
             }
-            Class connectorClass = (Class) parsedConfig.get(ConnectorConfig.CONNECTOR_CLASS_CONFIG);
-            if (connectorClass == null) {
+            String connectorClassOrAlias = (String) parsedConfig.get(ConnectorConfig.CONNECTOR_CLASS_CONFIG);
+            if (connectorClassOrAlias == null) {
                 //should never happen
                 return Collections.emptyList();
             }
-            switch (ConnectorType.from(connectorClass)) {
-                case SOURCE:
-                    return plugins.sourceConnectors(connectorClass.getName()).stream()
-                            .map(PluginDesc::version).collect(Collectors.toList());
-                case SINK:
-                    return plugins.sinkConnectors(connectorClass.getName()).stream()
-                            .map(PluginDesc::version).collect(Collectors.toList());
+            List<Object> sourceConnectors = plugins.sourceConnectors(connectorClassOrAlias).stream()
+                    .map(PluginDesc::version).distinct().collect(Collectors.toList());
+            if (!sourceConnectors.isEmpty()) {
+                return sourceConnectors;
             }
-            return Collections.emptyList();
+            return plugins.sinkConnectors(connectorClassOrAlias).stream()
+                    .map(PluginDesc::version).distinct().collect(Collectors.toList());
         }
 
         @Override
         public boolean visible(String name, Map<String, Object> parsedConfig) {
-            return parsedConfig.containsKey(ConnectorConfig.CONNECTOR_CLASS_CONFIG);
+            return parsedConfig.get(ConnectorConfig.CONNECTOR_CLASS_CONFIG) != null;
         }
 
+    }
+
+    public static class ConverterPluginRecommender implements ConfigDef.Recommender {
+
+        @Override
+        public List<Object> validValues(String name, Map<String, Object> parsedConfig) {
+            if (plugins == null) {
+                return Collections.emptyList();
+            }
+            return plugins.converters().stream()
+                    .map(PluginDesc::pluginClass).distinct().collect(Collectors.toList());
+        }
+
+        @Override
+        public boolean visible(String name, Map<String, Object> parsedConfig) {
+            return true;
+        }
+    }
+
+    public static class HeaderConverterPluginRecommender implements ConfigDef.Recommender {
+
+        @Override
+        public List<Object> validValues(String name, Map<String, Object> parsedConfig) {
+            if (plugins == null) {
+                return Collections.emptyList();
+            }
+            return plugins.headerConverters().stream()
+                    .map(PluginDesc::pluginClass).distinct().collect(Collectors.toList());
+        }
+
+        @Override
+        public boolean visible(String name, Map<String, Object> parsedConfig) {
+            return true;
+        }
     }
 
     public static abstract class ConverterPluginVersionRecommender implements ConfigDef.Recommender {
@@ -92,7 +124,7 @@ public class PluginVersionUtils {
 
         protected Function<String, List<Object>> recommendations() {
             return (converterClass) -> plugins.converters(converterClass).stream()
-                    .map(PluginDesc::version).collect(Collectors.toList());
+                    .map(PluginDesc::version).distinct().collect(Collectors.toList());
         }
 
 
@@ -102,7 +134,7 @@ public class PluginVersionUtils {
             if (plugins == null) {
                 return Collections.emptyList();
             }
-            if (!parsedConfig.containsKey(converterConfig())) {
+            if (parsedConfig.get(converterConfig()) == null) {
                 return Collections.emptyList();
             }
             Class converterClass = (Class) parsedConfig.get(converterConfig());
@@ -111,7 +143,7 @@ public class PluginVersionUtils {
 
         @Override
         public boolean visible(String name, Map<String, Object> parsedConfig) {
-            return parsedConfig.containsKey(converterConfig());
+            return parsedConfig.get(converterConfig()) != null;
         }
     }
 
@@ -145,7 +177,7 @@ public class PluginVersionUtils {
         @Override
         protected Function<String, List<Object>> recommendations() {
             return (converterClass) -> plugins.headerConverters(converterClass).stream()
-                    .map(PluginDesc::version).collect(Collectors.toList());
+                    .map(PluginDesc::version).distinct().collect(Collectors.toList());
         }
     }
 }

@@ -36,6 +36,7 @@ import org.apache.kafka.connect.errors.NotFoundException;
 import org.apache.kafka.connect.runtime.isolation.LoaderSwap;
 import org.apache.kafka.connect.runtime.isolation.PluginDesc;
 import org.apache.kafka.connect.runtime.isolation.Plugins;
+import org.apache.kafka.connect.runtime.isolation.VersionedPluginLoadingException;
 import org.apache.kafka.connect.runtime.rest.entities.ActiveTopicsInfo;
 import org.apache.kafka.connect.runtime.rest.entities.ConfigInfo;
 import org.apache.kafka.connect.runtime.rest.entities.ConfigInfos;
@@ -420,13 +421,16 @@ public abstract class AbstractHerder implements Herder, TaskStatus.Listener, Con
 
      * @param <T> the plugin class to perform validation for
      */
+    @SuppressWarnings("unchecked")
     private <T> ConfigInfos validateConverterConfig(
             Map<String, String> connectorConfig,
             ConfigValue pluginConfigValue,
+            ConfigValue pluginVersionValue,
             Class<T> pluginInterface,
             Function<T, ConfigDef> configDefAccessor,
             String pluginName,
             String pluginProperty,
+            String pluginVersionProperty,
             Map<String, String> defaultProperties,
             Function<String, TemporaryStage> reportStage
     ) {
@@ -435,12 +439,15 @@ public abstract class AbstractHerder implements Herder, TaskStatus.Listener, Con
         Objects.requireNonNull(configDefAccessor);
         Objects.requireNonNull(pluginName);
         Objects.requireNonNull(pluginProperty);
+        Objects.requireNonNull(pluginVersionProperty);
 
         String pluginClass = connectorConfig.get(pluginProperty);
+        String pluginVersion = connectorConfig.get(pluginVersionProperty);
 
         if (pluginClass == null
                 || pluginConfigValue == null
                 || !pluginConfigValue.errorMessages().isEmpty()
+                || !pluginVersionValue.errorMessages().isEmpty()
         ) {
             // Either no custom converter was specified, or one was specified but there's a problem with it.
             // No need to proceed any further.
@@ -450,10 +457,20 @@ public abstract class AbstractHerder implements Herder, TaskStatus.Listener, Con
         T pluginInstance;
         String stageDescription = "instantiating the connector's " + pluginName + " for validation";
         try (TemporaryStage stage = reportStage.apply(stageDescription)) {
-            pluginInstance = Utils.newInstance(pluginClass, pluginInterface);
+            VersionRange range = PluginVersionUtils.connectorVersionRequirement(pluginVersion);
+            pluginInstance = (T) plugins().newPlugin(pluginClass, range);
+        } catch (VersionedPluginLoadingException e) {
+            log.error("Failed to load {} class {} with version {}: {}", pluginName, pluginClass, pluginVersion, e);
+            pluginVersionValue.addErrorMessage(e.getMessage());
+            return null;
         } catch (ClassNotFoundException | RuntimeException e) {
             log.error("Failed to instantiate {} class {}; this should have been caught by prior validation logic", pluginName, pluginClass, e);
             pluginConfigValue.addErrorMessage("Failed to load class " + pluginClass + (e.getMessage() != null ? ": " + e.getMessage() : ""));
+            return null;
+        } catch (InvalidVersionSpecificationException e) {
+            // this should have been caught by prior validation logic
+            log.error("Invalid version range for {} class {}: {}", pluginName, pluginClass, pluginVersion, e);
+            pluginVersionValue.addErrorMessage(e.getMessage());
             return null;
         }
 
@@ -499,15 +516,18 @@ public abstract class AbstractHerder implements Herder, TaskStatus.Listener, Con
     private ConfigInfos validateHeaderConverterConfig(
             Map<String, String> connectorConfig,
             ConfigValue headerConverterConfigValue,
+            ConfigValue headerConverterVersionValue,
             Function<String, TemporaryStage> reportStage
     ) {
         return validateConverterConfig(
                 connectorConfig,
                 headerConverterConfigValue,
+                headerConverterVersionValue,
                 HeaderConverter.class,
                 HeaderConverter::config,
                 "header converter",
                 HEADER_CONVERTER_CLASS_CONFIG,
+                HEADER_CONVERTER_VERSION_CONFIG,
                 Collections.singletonMap(ConverterConfig.TYPE_CONFIG, ConverterType.HEADER.getName()),
                 reportStage
         );
@@ -516,15 +536,18 @@ public abstract class AbstractHerder implements Herder, TaskStatus.Listener, Con
     private ConfigInfos validateKeyConverterConfig(
             Map<String, String> connectorConfig,
             ConfigValue keyConverterConfigValue,
+            ConfigValue keyConverterVersionValue,
             Function<String, TemporaryStage> reportStage
     ) {
         return validateConverterConfig(
                 connectorConfig,
                 keyConverterConfigValue,
+                keyConverterVersionValue,
                 Converter.class,
                 Converter::config,
                 "key converter",
                 KEY_CONVERTER_CLASS_CONFIG,
+                KEY_CONVERTER_VERSION_CONFIG,
                 Collections.singletonMap(ConverterConfig.TYPE_CONFIG, ConverterType.KEY.getName()),
                 reportStage
         );
@@ -533,15 +556,18 @@ public abstract class AbstractHerder implements Herder, TaskStatus.Listener, Con
     private ConfigInfos validateValueConverterConfig(
             Map<String, String> connectorConfig,
             ConfigValue valueConverterConfigValue,
+            ConfigValue valueConverterVersionValue,
             Function<String, TemporaryStage> reportStage
     ) {
         return validateConverterConfig(
                 connectorConfig,
                 valueConverterConfigValue,
+                valueConverterVersionValue,
                 Converter.class,
                 Converter::config,
                 "value converter",
                 VALUE_CONVERTER_CLASS_CONFIG,
+                VALUE_CONVERTER_VERSION_CONFIG,
                 Collections.singletonMap(ConverterConfig.TYPE_CONFIG, ConverterType.VALUE.getName()),
                 reportStage
         );
@@ -729,16 +755,19 @@ public abstract class AbstractHerder implements Herder, TaskStatus.Listener, Con
             ConfigInfos headerConverterConfigInfos = validateHeaderConverterConfig(
                     connectorProps,
                     validatedConnectorConfig.get(HEADER_CONVERTER_CLASS_CONFIG),
+                    validatedConnectorConfig.get(HEADER_CONVERTER_VERSION_CONFIG),
                     reportStage
             );
             ConfigInfos keyConverterConfigInfos = validateKeyConverterConfig(
                     connectorProps,
                     validatedConnectorConfig.get(KEY_CONVERTER_CLASS_CONFIG),
+                    validatedConnectorConfig.get(KEY_CONVERTER_VERSION_CONFIG),
                     reportStage
             );
             ConfigInfos valueConverterConfigInfos = validateValueConverterConfig(
                     connectorProps,
                     validatedConnectorConfig.get(VALUE_CONVERTER_CLASS_CONFIG),
+                    validatedConnectorConfig.get(VALUE_CONVERTER_VERSION_CONFIG),
                     reportStage
             );
 

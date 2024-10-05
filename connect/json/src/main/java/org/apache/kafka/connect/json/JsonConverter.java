@@ -276,7 +276,7 @@ public class JsonConverter implements Converter, HeaderConverter, Versioned {
 
     @Override
     public String version() {
-        return "2.1.1";
+        return AppInfoParser.getVersion();
     }
 
     @Override
